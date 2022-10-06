@@ -1,0 +1,5 @@
+db_user
+db_user_pass
+CN=binddn,OU=Users,OU=Enterprise groups,DC=example,DC=com
+binddn_pass
+CN=remote_access,OU=Remote_Access,DC=example,DC=com
