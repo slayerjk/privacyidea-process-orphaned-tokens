@@ -2,11 +2,11 @@
 Script is automatization for processing orphaned tokens(del for disabled user; add to ad group for active users) based on AD users.
 
 **Workflow:**
--search for orphaned tokens using 'privacyidea-token-janitor';
--search for users of orphaned tokens using 'pidea_audit' of 'pi' db;
--search for AD(LDAP) users who is in 'OU=Disabled_Users' and who is not;
--delete orphaned tokens based on users in 'OU=Disabled_Users' using 'privacyidea-token-janitor';
--add users which are not disabled(actual) to remote access group of PrivacyIdea.
+1. search for orphaned tokens using 'privacyidea-token-janitor';
+2. search for users of orphaned tokens using 'pidea_audit' of 'pi' db;
+3. search for AD(LDAP) users who is in 'OU=Disabled_Users' and who is not;
+4. delete orphaned tokens based on users in 'OU=Disabled_Users' using 'privacyidea-token-janitor';
+5. add users which are not disabled(actual) to remote access group of PrivacyIdea.
 
 
 **Requirements:**
