@@ -23,7 +23,6 @@ Creds/etc data file, named '**script-data**' stored in script's work dir and con
 
 Looks like above:
 ```
-download
 db_user
 db_user_pass
 CN=binddn,OU=Users,OU=Enterprise groups,DC=example,DC=com
