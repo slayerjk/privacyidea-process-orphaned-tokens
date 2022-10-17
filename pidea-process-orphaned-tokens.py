@@ -44,7 +44,7 @@ creds file consist of four strings(newline for each):
 4) ad bind user's password
 5) full dn of remote access group of PI
 '''
-creds_file = work_dir+'/script-data'
+script_data = work_dir+'/script-data'
 
 ################################
 ### NO NEED TO EDIT FURTHER! ###
