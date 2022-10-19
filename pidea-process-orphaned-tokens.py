@@ -121,7 +121,7 @@ else:
 
 
 ### DEFINING CREDS & ETC DATA ###
-with open(creds_file, 'r', encoding='utf-8') as file:
+with open(script_data, 'r', encoding='utf-8') as file:
     data = [i.strip() for i in file.readlines()]
     db_user = data[0]
     db_pass = data[1]
