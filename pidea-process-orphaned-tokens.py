@@ -18,7 +18,7 @@ from ldap3.extend.microsoft.addMembersToGroups import ad_add_members_to_groups a
 ### PROGRAM DATE(EDIT THIS SECTION) ###
 
 ### WORKING DIR ###
-work_dir = '<absolute-path-to-script-n-script-data>'
+work_dir = '<your-abs-path>'
 
 ### DEFINE HOW MANY FILES TO KEEP(MOST RECENT) ###
 logs_to_keep = 30
@@ -31,8 +31,8 @@ host_ip = gethostbyname(gethostname())
 pidea_db = 'pi'
 
 ### LDAP DATA ###
-dc_host = '<fqdn-of-your-dc>'
-domain_root = '<dc=example,dc=com>'
+dc_host = '<your-dc>'
+domain_root = '<your-domain-root>'
 ldap_port = 389
 
 ### SCRIPT DATA FILE PATH ###
@@ -74,6 +74,8 @@ logging.info(f'PIDEA NODE IP: {host_ip}\n')
 token_user_dict = dict()
 pidea_serial_pattern = '^(TOTP.{8})\s\(totp\)'
 pidea_janitor_path = which('privacyidea-token-janitor')
+tokens_orphaned = []
+tokens_user_not_found = []
 tokens_to_del = []
 actual_users_dn = []
 
@@ -111,6 +113,7 @@ def count_script_job_time():
 '''
 No need to run script if <critical service> isn't active
 '''
+### CHECK ACTIVE NODE
 critical_service_name = 'freeradius'
 if (call(['systemctl', 'is-active', 'freeradius']) != 0):
     logging.warning('Freeradius is not active on this node, finishing job...')
@@ -136,13 +139,13 @@ with TemporaryFile('w+t') as temp:
     temp.seek(0)
     for line in temp.readlines():
         if '(totp)' in line:
-            token_user_dict[findall(pidea_serial_pattern, line)[0]] = 'NA'
+            tokens_orphaned.append(findall(pidea_serial_pattern, line)[0])
 logging.info('DONE: searching ORPHANED tokens\n')
-if len(token_user_dict) == 0:
+if len(tokens_orphaned) == 0:
     logging.warning('NO ORPHANED TOKENS FOUND, finishing job...\n')
     count_script_job_time()
 
-logging.info(f'Current orphaned tokens are:\n{token_user_dict.keys()}\n')
+logging.info(f'Current orpaned tokens list is: {tokens_orphaned}')
 
 ### SEARCH TOKEN'S USERS IN PI DB ###
 pidea_db_host = host_ip
@@ -159,15 +162,19 @@ try:
     ) as connection:
         logging.info('DONE: MYSQL connection established\n')
         logging.info('START: getting MYSQL query results')
-        for token, user in token_user_dict.items():
+        for token in tokens_orphaned:
             select_test_query = f"SELECT user FROM pidea_audit WHERE serial = '{token}' AND user IS NOT NULL"
             with connection.cursor(buffered=True) as cursor:
                 try:
                     cursor.execute(select_test_query)
-                    for result in cursor.fetchone():
-                        token_user_dict[token] = str(result).lower()
+                    try:
+                        for result in cursor.fetchone():
+                            token_user_dict[token] = str(result).lower()
+                    except TypeError as e:
+                        logging.warning(f'Probably, there is no user for {token}, skipping...')
+                        continue
                 except Exception as e:
-                    logging.error('FAILURE: getting MYSQL query result, finishing job...\n', e)
+                    logging.exception('FAILURE: getting MYSQL query result, finishing job...\n')
                     count_script_job_time()
 except Exception as e:
     logging.exception('FAILURE: establishing MYSQL connection, finishing job...')
@@ -175,6 +182,7 @@ except Exception as e:
 
 logging.info('DONE: searching for USERS of orphaned tokens\n')
 logging.info(f'Current token-user list:\n{token_user_dict}\n')
+logging.warning(f'Tokens with NO user found in DB: {tokens_user_not_found}\n')
 
 ### SEARCHING ORPHANED TOKENS' USERS IN LDAP ###
 logging.info('START: establishing LDAP binding')
@@ -185,7 +193,7 @@ try:
     conn = Connection(ldap_server, ad_bind_user, ad_bind_user_pass, auto_bind=True)
     logging.info('DONE: establishing LDAP binding\n')
     logging.info(f'Connection details:\n{conn}\n')
-    logging.info('START: searching LDAP users info')
+    logging.info('START: searching LDAP users info\n')
     try:
         for token, user in token_user_dict.items():
             conn.search(domain_root, f'(&(objectclass=user)(sAMAccountName={user}))')
@@ -215,7 +223,7 @@ if len(tokens_to_del) == 0:
 else:
     process_token_to_del_coutner = 1
     succeeded_token_to_del_counter = 0
-    logging.info('START: deleting ORPHANED tokens')
+    logging.info('START: deleting ORPHANED tokens\n-----')
     for token in tokens_to_del:
         try:
             logging.info(f'NOW DELETING: {token}; {process_token_to_del_coutner}/{len(tokens_to_del)}')
@@ -237,7 +245,7 @@ if len(actual_users_dn) == 0:
 else:
     process_users_counter = 1
     succeeded_users_counter = 0
-    logging.info('START: adding actual users to remote group')
+    logging.info('START: adding actual users to remote group\n-----')
     for dn in actual_users_dn:
         actual_user = findall(user_from_dn_pattern, dn)
         logging.info(f'Processing {actual_user}: {process_users_counter}/{len(actual_users_dn)}')
@@ -255,4 +263,4 @@ logging.info(f'Succedded: {succeeded_users_counter}/{len(actual_users_dn)}\n')
 ### FINISH ###
 logging.info('#########################')
 logging.info('DONE: Script job done!\n') 
-count_script_job_time()  
+count_script_job_time()
