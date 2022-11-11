@@ -181,6 +181,8 @@ except Exception as e:
     logging.exception('FAILURE: establishing MYSQL connection, finishing job...')
     count_script_job_time()
 
+logging.info('DONE: getting MYSQL query results\n')
+    
 if len(tokens_user_not_found) > 0:
     logging.warning(f'Tokens with NO user found in DB: {tokens_user_not_found}\n')
 
