@@ -181,10 +181,14 @@ except Exception as e:
     logging.exception('FAILURE: establishing MYSQL connection, finishing job...')
     count_script_job_time()
 
-logging.info('DONE: searching for USERS of orphaned tokens\n')
-logging.info(f'Current token-user list:\n{token_user_dict}\n')
 if len(tokens_user_not_found) > 0:
     logging.warning(f'Tokens with NO user found in DB: {tokens_user_not_found}\n')
+
+if len(token_user_dict) == 0:
+    logging.warning(f'NO users to proceed, exiting...\n')
+    count_script_job_time()
+else:
+    logging.info(f'Current token-user list:\n{token_user_dict}\n')
 
 ### SEARCHING ORPHANED TOKENS' USERS IN LDAP ###
 logging.info('START: establishing LDAP binding')
