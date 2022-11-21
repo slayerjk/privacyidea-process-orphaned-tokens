@@ -13,12 +13,13 @@ from re import findall
 from mysql.connector import connect
 from ldap3 import Server, Connection
 from ldap3.extend.microsoft.addMembersToGroups import ad_add_members_to_groups as ADAddToGroup
+import smtplib
 
 #######################################
 ### PROGRAM DATE(EDIT THIS SECTION) ###
 
 ### WORKING DIR ###
-work_dir = '<your-abs-path>'
+work_dir = '/home/marchenm/scripts/pidea-process-orphaned-tokens'
 
 ### DEFINE HOW MANY FILES TO KEEP(MOST RECENT) ###
 logs_to_keep = 30
@@ -31,8 +32,8 @@ host_ip = gethostbyname(gethostname())
 pidea_db = 'pi'
 
 ### LDAP DATA ###
-dc_host = '<your-dc>'
-domain_root = '<your-domain-root>'
+dc_host = 'YOUR-DC'
+domain_root = 'dc=example,dc=com'
 ldap_port = 389
 
 ### SCRIPT DATA FILE PATH ###
@@ -45,6 +46,15 @@ creds file consist of four strings(newline for each):
 5) full dn of remote access group of PI
 '''
 script_data = work_dir+'/script-data'
+
+### SMTP DATA(WITHOUT AUTH, 25 port) ###
+'''
+For an email alert when tokens with NO user found in DB
+'''
+smtp_server = 'YOUR-SMTP-SERVER'
+from_addr = 'pidea@EX.COM'
+to_addr = ['user1@ex.com', 'user2@ex.com', 'user3@ex.com']
+smtp_port = 25
 
 ################################
 ### NO NEED TO EDIT FURTHER! ###
@@ -64,6 +74,7 @@ app_log_name = logs_dir+'/pidea-del-orphaned-tokens_' + \
 logging.basicConfig(filename=app_log_name, filemode='a', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%d-%b-%Y %H:%M:%S')
 
+logging.info('----------------------------------------------')
 logging.info('SCRIPT WORK STARTED: DEL PIDEA ORPHANED TOKENS')
 logging.info('Script Starting Date&Time is: ' +
              str(today.strftime('%d/%m/%Y %H:%M:%S')))
@@ -113,7 +124,7 @@ def count_script_job_time():
 '''
 No need to run script if <critical service> isn't active
 '''
-### CHECK ACTIVE NODE
+### CHECK ACTIVE NODE ###
 critical_service_name = 'freeradius'
 if (call(['systemctl', 'is-active', 'freeradius']) != 0):
     logging.warning('Freeradius is not active on this node, finishing job...')
@@ -182,9 +193,19 @@ except Exception as e:
     count_script_job_time()
 
 logging.info('DONE: getting MYSQL query results\n')
-    
+
+### IF THERE IS/ARE TOKEN(S) WITH NO USER FOUND IN DB - SEND EMAIL ###
 if len(tokens_user_not_found) > 0:
     logging.warning(f'Tokens with NO user found in DB: {tokens_user_not_found}\n')
+    logging.info('START: sending email about tokens with no users')
+    try:
+        with smtplib.SMTP(smtp_server, smtp_port) as send_mail:
+            send_mail.ehlo()
+            send_mail.sendmail(from_addr=from_addr, to_addrs=to_addr, msg=f'subject: Tokens with NO user found in DB({today}): \n\n Tokens with NO user found in DB({today}):\n{tokens_user_not_found}')
+            send_mail.quit()
+            logging.info('DONE: sending email about tokens with no users\n')
+    except Exception as e:
+        logging.warning('FAILED: sending Tokens with NO user found in DB, moving on...\n')
 
 if len(token_user_dict) == 0:
     logging.warning(f'NO users to proceed, exiting...\n')
@@ -271,4 +292,4 @@ logging.info(f'Succedded: {succeeded_users_counter}/{len(actual_users_dn)}\n')
 ### FINISH ###
 logging.info('#########################')
 logging.info('DONE: Script job done!\n') 
-count_script_job_time()
+count_script_job_time()  
