@@ -292,4 +292,4 @@ logging.info(f'Succedded: {succeeded_users_counter}/{len(actual_users_dn)}\n')
 ### FINISH ###
 logging.info('#########################')
 logging.info('DONE: Script job done!\n') 
-count_script_job_time()  
+count_script_job_time()
