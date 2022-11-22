@@ -174,7 +174,7 @@ try:
         logging.info('DONE: MYSQL connection established\n')
         logging.info('START: getting MYSQL query results')
         for token in tokens_orphaned:
-            select_test_query = f"SELECT user FROM pidea_audit WHERE serial = '{token}' AND user IS NOT NULL"
+            select_test_query = f"SELECT user FROM pidea_audit WHERE serial = '{token}' AND user != '' AND user IS NOT NULL"
             with connection.cursor(buffered=True) as cursor:
                 try:
                     cursor.execute(select_test_query)
