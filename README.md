@@ -7,6 +7,7 @@ Script is automatization for processing orphaned tokens(del for disabled user; a
 3. search for AD(LDAP) users who is in 'OU=Disabled_Users' and who is not;
 4. delete orphaned tokens based on users in 'OU=Disabled_Users' using 'privacyidea-token-janitor';
 5. add users which are not disabled(actual) to remote access group of PrivacyIdea.
+6. email option(yes/no); send mail if found tokens with no mapped users; send mail if script error.
 
 
 **Requirements:**
