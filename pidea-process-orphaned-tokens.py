@@ -19,7 +19,7 @@ import smtplib
 ### PROGRAM DATE(EDIT THIS SECTION) ###
 
 ### WORKING DIR ###
-work_dir = '<your-abs-path-to-script-dir>'
+work_dir = '<your-absolute-path-to-script'
 
 ### DEFINE HOW MANY FILES TO KEEP(MOST RECENT) ###
 logs_to_keep = 30
@@ -32,7 +32,7 @@ host_ip = gethostbyname(gethostname())
 pidea_db = 'pi'
 
 ### LDAP DATA ###
-dc_host = '<your DC>'
+dc_host = '<your-dc-name'
 domain_root = 'dc=ex,dc=com'
 ldap_port = 389
 
@@ -53,9 +53,9 @@ For an email alert when tokens with NO user found in DB
 '''
 send_mail_option = 'yes'
 smtp_server = '<your-smtp-server'
-from_addr = '2fa@ex.comz'
-to_addr_list = ['admin@ex.com', 'user2@ex.com', 'user3@ex.com']
-to_addr_admin_only = 'admin@bcc.kz'
+from_addr = '2fa@ex.com'
+to_addr_list = ['admin@ex.com', 'user1@ex.com', 'user2@ex.com']
+to_addr_admin_only = ['admin@ex.com']
 smtp_port = 25
 
 ################################
@@ -91,6 +91,7 @@ tokens_orphaned = []
 tokens_user_not_found = []
 tokens_to_del = []
 actual_users_dn = []
+user_not_found_in_cur_domain = dict()
 
 #####################
 ##### FUNCTIONS #####
@@ -134,6 +135,18 @@ def send_mail(type):
                     logging.info('DONE: sending email about tokens with no users\n')
             except Exception as e:
                 logging.warning('FAILED: sending Tokens with NO user found in DB, moving on...\n')
+        elif type == 'user-not-found-current-domain':
+            subj = 'User NOT found in current domain'
+            msg = user_not_found_in_cur_domain
+            logging.info('START: sending email about users not found in the current domain')
+            try:
+                with smtplib.SMTP(smtp_server, smtp_port) as send_mail:
+                    send_mail.ehlo()
+                    send_mail.sendmail(from_addr=from_addr, to_addrs=to_addr_list, msg=f'subject: {subj}({today})\n\n{today}:\n{msg}')
+                    send_mail.quit()
+                    logging.info('DONE: sending email about users not found in the current domain\n')
+            except Exception as e:
+                logging.warning('FAILED: sending email about users not found in the current domain, moving on...\n')
         elif type == 'script-error':
             logging.info('START: sending error report')
             subj = 'Pidea Process Orphaned Tokens Script Error Occured'
@@ -257,12 +270,17 @@ try:
         for token, user in token_user_dict.items():
             conn.search(domain_root, f'(&(objectclass=user)(sAMAccountName={user}))')
             response = loads(conn.response_to_json())
-            if 'OU=Disabled_Users' in response["entries"][0]["dn"]:
-                logging.info(f'{user}({token}) is in OU=Disabled_Users:\n<<{response["entries"][0]["dn"]}>>\n')
-                tokens_to_del.append(token)
-            else:
-                logging.info(f'{user}({token}) is ACTIVE:\n<<{response["entries"][0]["dn"]}>>\n')
-                actual_users_dn.append(response["entries"][0]["dn"])
+            try:
+                if 'OU=Disabled_Users' in response["entries"][0]["dn"]:
+                    logging.info(f'{user}({token}) is in OU=Disabled_Users:\n<<{response["entries"][0]["dn"]}>>\n')
+                    tokens_to_del.append(token)
+                else:
+                    logging.info(f'{user}({token}) is ACTIVE:\n<<{response["entries"][0]["dn"]}>>\n')
+                    actual_users_dn.append(response["entries"][0]["dn"])
+            except IndexError as e:
+                logging.warning(f'{user}({token} NOT FOUND IN THE CURRENT DOMAIN, skipping...')
+                user_not_found_in_cur_domain[user] = token
+                send_mail('user-not-found-current-domain')
     except Exception as e:
         logging.exception('FAILURE: searching LDAP users info, finishing job...')
         send_mail('script-error')
