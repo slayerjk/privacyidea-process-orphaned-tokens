@@ -13,13 +13,15 @@ from re import findall
 from mysql.connector import connect
 from ldap3 import Server, Connection
 from ldap3.extend.microsoft.addMembersToGroups import ad_add_members_to_groups as ADAddToGroup
-import smtplib
+from smtplib import SMTP
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 #######################################
 ### PROGRAM DATE(EDIT THIS SECTION) ###
 
 ### WORKING DIR ###
-work_dir = '<your-absolute-path-to-script'
+work_dir = '<your-absolute-path>'
 
 ### DEFINE HOW MANY FILES TO KEEP(MOST RECENT) ###
 logs_to_keep = 30
@@ -32,8 +34,8 @@ host_ip = gethostbyname(gethostname())
 pidea_db = 'pi'
 
 ### LDAP DATA ###
-dc_host = '<your-dc-name'
-domain_root = 'dc=ex,dc=com'
+dc_host = '<your-dc>'
+domain_root = 'dc=example,dc=com'
 ldap_port = 389
 
 ### SCRIPT DATA FILE PATH ###
@@ -52,10 +54,10 @@ script_data = work_dir+'/script-data'
 For an email alert when tokens with NO user found in DB
 '''
 send_mail_option = 'yes'
-smtp_server = '<your-smtp-server'
-from_addr = '2fa@ex.com'
-to_addr_list = ['admin@ex.com', 'user1@ex.com', 'user2@ex.com']
-to_addr_admin_only = ['admin@ex.com']
+smtp_server = '<your-smtp-server>'
+from_addr = '2fa@example.com'
+to_addr_list = ['user1@example.com', 'user2@example.com']
+to_addr_admin_only = ['admin1@example.com, admin2@example.com']
 smtp_port = 25
 
 ################################
@@ -122,51 +124,57 @@ def count_script_job_time():
 
 ### EMAIL REPORT ###
 def send_mail(type):
+    message = MIMEMultipart()
     if send_mail_option == 'yes':
-        if type == 'token-info':
-            subj = 'Tokens with NO user found in DB'
-            msg = tokens_user_not_found
+        if type == 'token-with-no-users':
+            message["Subject"] = f'Tokens with NO user found in DB({today})'
+            message["To"] = ', '.join(to_addr_list)
+            rcpt_to = to_addr_list
+            body = tokens_user_not_found
             logging.info('START: sending email about tokens with no users')
-            try:
-                with smtplib.SMTP(smtp_server, smtp_port) as send_mail:
-                    send_mail.ehlo()
-                    send_mail.sendmail(from_addr=from_addr, to_addrs=to_addr_list, msg=f'subject: {subj}({today})\n\n{today}:\n{msg}')
-                    send_mail.quit()
-                    logging.info('DONE: sending email about tokens with no users\n')
-            except Exception as e:
-                logging.warning('FAILED: sending Tokens with NO user found in DB, moving on...\n')
         elif type == 'user-not-found-current-domain':
-            subj = 'User NOT found in current domain'
-            msg = user_not_found_in_cur_domain
+            message["Subject"] = f'User NOT found in current domain({today})'
+            message["To"] = ', '.join(to_addr_list)
+            rcpt_to = to_addr_list
+            body = user_not_found_in_cur_domain
             logging.info('START: sending email about users not found in the current domain')
-            try:
-                with smtplib.SMTP(smtp_server, smtp_port) as send_mail:
-                    send_mail.ehlo()
-                    send_mail.sendmail(from_addr=from_addr, to_addrs=to_addr_list, msg=f'subject: {subj}({today})\n\n{today}:\n{msg}')
-                    send_mail.quit()
-                    logging.info('DONE: sending email about users not found in the current domain\n')
-            except Exception as e:
-                logging.warning('FAILED: sending email about users not found in the current domain, moving on...\n')
+        elif type == 'active-users':
+            message["Subject"] = f'Active users found({today})'
+            message["To"] = ', '.join(to_addr_list)
+            rcpt_to = to_addr_list
+            active_users_temp_file.seek(0)
+            input_file = active_users_temp_file.read()
+            message.attach(MIMEText(input_file, "plain"))
+            body = message.as_string()
+            logging.info('START: sending email about active users in the current domain')            
         elif type == 'script-error':
-            logging.info('START: sending error report')
-            subj = 'Pidea Process Orphaned Tokens Script Error Occured'
+            message["Subject"] = f'Pidea Process Orphaned Tokens Script Error Occured({today})'
+            message["To"] = ', '.join(to_addr_admin_only)
+            rcpt_to = to_addr_admin_only
             with open(app_log_name, 'r') as log:
-                msg = log.read()
-            try:
-                with smtplib.SMTP(smtp_server, smtp_port) as send_mail:
-                    send_mail.ehlo()
-                    send_mail.sendmail(from_addr=from_addr, to_addrs=to_addr_admin_only, msg=f'subject: {subj}({today})\n\n{today}:\n{msg}')
-                    send_mail.quit()
-                    logging.info('DONE: sending error report\n')
-            except Exception as e:
-                logging.warning('FAILED: sending error report, moving on...\n')
-            count_script_job_time()
+                input_file = log.read()
+            message.attach(MIMEText(input_file, "plain"))
+            body = message.as_string()
+            logging.info('START: sending script error report')
+
+        try:
+            with SMTP(smtp_server, smtp_port) as send_mail:
+                send_mail.ehlo()
+                send_mail.sendmail(from_addr, rcpt_to, body)
+                send_mail.quit()
+                logging.info('DONE: sending email report\n')
+        except Exception as e:
+            logging.warning('FAILED: sending email report, moving on...\n')
+        if type == 'script-error':
+            count_script_job_time()                
+
     else:
-        if type == 'token-info':
-            logging.info('Email report was not set, skipping')
-        elif type == 'script-error':
+        if type == 'script-error':
             logging.info('Email report was not set, skipping')
             count_script_job_time()
+        else:
+            logging.info('Email report was not set, skipping')
+            
 
 #####################
 ### MAIN WORKFLOW ###
@@ -248,7 +256,7 @@ logging.info('DONE: getting MYSQL query results\n')
 ### IF THERE IS/ARE TOKEN(S) WITH NO USER FOUND IN DB - SEND EMAIL ###
 if len(tokens_user_not_found) > 0:
     logging.warning(f'Tokens with NO user found in DB: {tokens_user_not_found}\n')
-    send_mail('token-info')
+    send_mail('token-with-no-users')
 
 if len(token_user_dict) == 0:
     logging.warning(f'NO users to proceed, exiting...\n')
@@ -260,7 +268,7 @@ else:
 logging.info('START: establishing LDAP binding')
 
 ldap_server = Server(dc_host, port=ldap_port)
-
+active_users_temp_file = TemporaryFile('w+t')
 try:
     conn = Connection(ldap_server, ad_bind_user, ad_bind_user_pass, auto_bind=True)
     logging.info('DONE: establishing LDAP binding\n')
@@ -276,6 +284,7 @@ try:
                     tokens_to_del.append(token)
                 else:
                     logging.info(f'{user}({token}) is ACTIVE:\n<<{response["entries"][0]["dn"]}>>\n')
+                    active_users_temp_file.write(f'{response["entries"][0]["dn"]}\n')
                     actual_users_dn.append(response["entries"][0]["dn"])
             except IndexError as e:
                 logging.warning(f'{user}({token} NOT FOUND IN THE CURRENT DOMAIN, skipping...')
@@ -335,6 +344,7 @@ else:
             process_users_counter += 1
 
 logging.info('DONE: adding actual users to remote group\n')
+send_mail('active-users')
 logging.info(f'Succedded: {succeeded_users_counter}/{len(actual_users_dn)}\n')
 
 ### FINISH ###
