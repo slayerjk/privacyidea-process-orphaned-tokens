@@ -127,19 +127,19 @@ def send_mail(type):
     message = MIMEMultipart()
     if send_mail_option == 'yes':
         if type == 'token-with-no-users':
-            message["Subject"] = f'Tokens with NO user found in DB({today})'
+            message["Subject"] = f'PrivacyIdea: Orphaned token(s) with NO mapped user found in DB({today})'
             message["To"] = ', '.join(to_addr_list)
             rcpt_to = to_addr_list
             body = tokens_user_not_found
             logging.info('START: sending email about tokens with no users')
         elif type == 'user-not-found-current-domain':
-            message["Subject"] = f'User NOT found in current domain({today})'
+            message["Subject"] = f'PrivacyIdea: User of orphaned token(s) NOT found in current domain({today})'
             message["To"] = ', '.join(to_addr_list)
             rcpt_to = to_addr_list
             body = user_not_found_in_cur_domain
             logging.info('START: sending email about users not found in the current domain')
         elif type == 'active-users':
-            message["Subject"] = f'Active users found({today})'
+            message["Subject"] = f'PrivacyIdea: Active domain user of orphaned token(s) found({today})'
             message["To"] = ', '.join(to_addr_list)
             rcpt_to = to_addr_list
             active_users_temp_file.seek(0)
@@ -148,7 +148,7 @@ def send_mail(type):
             body = message.as_string()
             logging.info('START: sending email about active users in the current domain')            
         elif type == 'script-error':
-            message["Subject"] = f'Pidea Process Orphaned Tokens Script Error Occured({today})'
+            message["Subject"] = f'PrivacyIdea: Porcessing orphaned tokens script error occured({today})'
             message["To"] = ', '.join(to_addr_admin_only)
             rcpt_to = to_addr_admin_only
             with open(app_log_name, 'r') as log:
