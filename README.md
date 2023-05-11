@@ -47,3 +47,8 @@ from mysql.connector import connect, Error
 from ldap3 import Server, Connection
 from ldap3.extend.microsoft.addMembersToGroups import ad_add_members_to_groups as ADAddToGroup
 ```
+
+Also you have to install myslq-connector-python for supported auth methods:
+```
+pip install mysql-connector-python
+```
