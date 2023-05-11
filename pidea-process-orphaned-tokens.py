@@ -8,7 +8,7 @@ from socket import gethostname, gethostbyname
 from subprocess import run, call
 from shutil import which
 from tempfile import TemporaryFile
-from json import loads
+from json import loads, dumps
 from re import findall
 from mysql.connector import connect
 from ldap3 import Server, Connection
@@ -130,13 +130,17 @@ def send_mail(type):
             message["Subject"] = f'PrivacyIdea: Orphaned token(s) with NO mapped user found in DB({today})'
             message["To"] = ', '.join(to_addr_list)
             rcpt_to = to_addr_list
-            body = tokens_user_not_found
+            msg_content = dumps(tokens_user_not_found, indent=4)
+            message.attach(MIMEText(msg_content, 'plain'))
+            body = message.as_string()
             logging.info('START: sending email about tokens with no users')
         elif type == 'user-not-found-current-domain':
             message["Subject"] = f'PrivacyIdea: User of orphaned token(s) NOT found in current domain({today})'
             message["To"] = ', '.join(to_addr_list)
             rcpt_to = to_addr_list
-            body = user_not_found_in_cur_domain
+            msg_content = dumps(user_not_found_in_cur_domain, indent=4)
+            message.attach(MIMEText(msg_content, 'plain'))
+            body = message.as_string()
             logging.info('START: sending email about users not found in the current domain')
         elif type == 'active-users':
             message["Subject"] = f'PrivacyIdea: Active domain user of orphaned token(s) found({today})'
@@ -164,7 +168,7 @@ def send_mail(type):
                 send_mail.quit()
                 logging.info('DONE: sending email report\n')
         except Exception as e:
-            logging.warning('FAILED: sending email report, moving on...\n')
+            logging.exception('FAILED: sending email report, moving on...\n')
         if type == 'script-error':
             count_script_job_time()                
 
@@ -289,7 +293,11 @@ try:
             except IndexError as e:
                 logging.warning(f'{user}({token} NOT FOUND IN THE CURRENT DOMAIN, skipping...')
                 user_not_found_in_cur_domain[user] = token
-                send_mail('user-not-found-current-domain')
+                
+        ### IF THERE IS/ARE USER NOT FOUND IN CURRENT DOMAIN - SEND EMAIL ###       
+        if len(user_not_found_in_cur_domain) > 0:
+            send_mail('user-not-found-current-domain')
+            
     except Exception as e:
         logging.exception('FAILURE: searching LDAP users info, finishing job...')
         send_mail('script-error')
