@@ -9,27 +9,12 @@ Script is automatization for processing orphaned tokens(del for disabled user; a
 5. add users which are not disabled(actual) to remote access group of PrivacyIdea.
 6. email option(yes/no); send mail if found tokens with no mapped users; send mail if script error.
 
-
 **Requirements:**
 Script has written using 'Python 3.10.4'.
 
 Work confirmed on 'Python 3.8.10'.
 
-Creds/etc data file, named '**script-data**' stored in script's work dir and consist of five strings(newline for each):
-- pidea db username
-- pidea db user pass
-- full ad bind user, like 'cn=bind_user,ou=users,…'
-- ad bind user's password
-- full dn of remote access group of PI
-
-Looks like above:
-```
-db_user
-db_user_pass
-CN=binddn,OU=Users,OU=Enterprise groups,DC=example,DC=com
-binddn_pass
-CN=remote_access,OU=Remote_Access,DC=example,DC=com
-```
+Creds/etc data file, named '**script-data.json**' stored in script's work dir.
 
 **Used modules:**
 ```
