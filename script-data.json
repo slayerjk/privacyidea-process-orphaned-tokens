@@ -1,0 +1,30 @@
+{
+    "pidea": {
+        "pidea_db": "pi",
+        "pidea_db_host": "HOST-IP",
+        "db_user": "DB USER NAME",
+        "db_pass": "DB USER PASS "
+    },
+    "ldap": {
+        "dc_host": "DC HOST NAME",
+        "domain_root": "dc=DOMAIN,dc=EXAMPLE,dc=COM",
+        "ldap_port": 389,
+		"ad_bind_user": "CN=BIND-DN-USER,OU=...,DC=DOMAIN,DC=EXAMPLE,DC=COM",
+        "ad_bind_user_pass": "BIND USER PASS",
+        "ad_remote_access_group": "CN=REMOTE-ACCESS-GROUP,OU=...,DC=DOMAIN,DC=EXAMPLE,DC=COM"
+    },
+    "smtp": {
+        "send_mail_option": "yes",
+        "smtp_server": "SMTP HOSTNAME",
+        "smtp_port": 25,
+        "from_addr": "FROM ADDRESS EMAIL",
+        "to_addr_list": [
+            "USER1@DOM.EX.COM",
+            "USER2@DOM.EX.COM"
+        ],
+        "to_addr_admin_only": [
+            "ADMIN1@DOM.EX.COM",
+            "ADMIN2@DOM.EX.COM"
+        ]
+    }
+}
