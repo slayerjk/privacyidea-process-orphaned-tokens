@@ -30,7 +30,8 @@ host_ip = gethostbyname(gethostname())
 # SCRIPT DATA FILE PATH
 
 # DEFINING CREDS & ETC DATA
-script_data = 'script-data.json'
+work_dir = path.dirname(__file__)
+script_data = f'{work_dir}/script-data.json'
 
 if not path.isfile(script_data):
     logging.error(f'{script_data} DOES NOT EXIST, exiting')
